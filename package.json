@@ -3,6 +3,7 @@
 	"displayName": "vscx",
 	"description": "",
 	"version": "0.0.1",
+	"publisher": "icedlee337",
 	"engines": {
 		"vscode": "^1.47.0"
 	},
