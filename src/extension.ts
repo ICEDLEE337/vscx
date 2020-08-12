@@ -1,28 +1,83 @@
 // The module 'vscode' contains the VS Code extensibility API
 // Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
-import {serverAppVscx} from '@onivoro/server-app-vscx';
+import { searchHandler, openFolderHandler, cloneHandler, RepoManager, AngularGenerator } from '@onivoro/server-app-vscx';
+import { join } from 'path';
+// import { join } from 'path';
 
-// this method is called when your extension is activated
-// your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
 
-	// Use the console to output diagnostic information (console.log) and errors (console.error)
-	// This line of code will only be executed once when your extension is activated
-	console.log('Congratulations, your extension "vscx" is now active!');
+	// const assets = GeneratorBase.enumerateAssets(process.cwd(), ['soundcheck', 'dist', 'soundcheck']);
+	// const assets = AngularGenerator.enumerateAssets(context.extensionPath, assetPaths);
+	// vscode.window.showInformationMessage(assets.sort().join(' '));
 
-	// The command has been defined in the package.json file
-	// Now provide the implementation of the command with registerCommand
-	// The commandId parameter must match the command field in package.json
 	let disposable = vscode.commands.registerCommand('extension.helloWorld', () => {
-		// The code you place here will be executed every time your command is executed
+		vscode.window.showInformationMessage('we live fam');
+		const assetPaths = ['soundcheck', 'dist', 'soundcheck'];
 
-		// Display a message box to the user
-		vscode.window.showInformationMessage(serverAppVscx());
+		const panel = vscode.window.createWebviewPanel(
+			'gitgrok',
+			'GitGrok',
+			vscode.ViewColumn.One,
+			{
+				enableScripts: true,
+				localResourceRoots: [vscode.Uri.file(join(context.extensionPath, ...assetPaths))],
+
+			}
+		);
+
+		panel.webview.onDidReceiveMessage(
+			message => {
+				const postMessage = (command: string, payload: any) => {
+					panel.webview.postMessage({ command, payload });
+				};
+				const { command, payload } = message;
+				switch (command) {
+					case 'search':
+						searchHandler(payload, vscode, postMessage);
+						return;
+					case 'openFile':
+					case 'openFolder':
+						openFolderHandler(payload, vscode);
+						return;
+					case 'clone':
+						cloneHandler(payload, vscode);
+						return;
+					case 'info':
+						vscode.window.showInformationMessage(payload);
+						return;
+					case 'warn':
+						vscode.window.showWarningMessage(payload);
+						return;
+					case 'error':
+						vscode.window.showErrorMessage(payload);
+						return;
+					case 'repoList':
+						new RepoManager().getRepoList().then((repos: any) => {
+							postMessage(command, repos);
+						});
+						return;
+				}
+			},
+			undefined,
+			context.subscriptions
+		);
+		try {
+			const generator = new AngularGenerator(vscode, panel, context, assetPaths);
+			const html = generator.getHtmlWithUris();
+			vscode.window.showInformationMessage(html);
+			panel.webview.html = html;
+		}
+		catch (e) {
+			vscode.window.showErrorMessage(e.message);
+		}
 	});
+
 
 	context.subscriptions.push(disposable);
 }
 
 // this method is called when your extension is deactivated
-export function deactivate() {}
+export function deactivate() { }
+
+
